@@ -1,6 +1,5 @@
 import 'package:drift_clear_learn/data/database/project_database.dart';
-import 'package:drift_clear_learn/data/tables/user_table.dart';
-import 'package:drift_clear_learn/data/tables/task_table.dart';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 
