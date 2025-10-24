@@ -38,7 +38,6 @@ MigrationStrategy get migration => MigrationStrategy(
     await m.createAll();
   },
   onUpgrade: (m, from, to) async {
-    // Миграция с версии 1 на 2: добавление email
     if (from == 1) {
       await m.addColumn(taskTable, taskTable.isCompleate);
     }

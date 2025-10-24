@@ -38,22 +38,32 @@ class _ShowDataState extends State<ShowData> {
             throw Exception('Неверное состояние');
           }
 
-          final ScreenState state = data.data ?? ScreenState(users: [], projects: [], tasks: []);
+          final ScreenState state = data.data ?? ScreenState(
+            users: [], projects: [], tasks: []);
 
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(child: SizedBox(height: 200, child: Column(
                 children: [
                   TextButton(onPressed: createUser, child: Text('create User')),
-                  TextButton(onPressed: createProject, child: Text('create project for first user')),
-                  TextButton(onPressed: createTaskForFirstProject, child: Text('create Task For first project'),),
-                  TextButton(onPressed: setAllTaskCompleate, child: Text('set all tasks compleate'),),
-
+                  TextButton(
+                    onPressed: createProject, 
+                    child: Text('create project for first user'),
+                  ),
+                  TextButton(
+                    onPressed: createTaskForFirstProject, 
+                    child: Text('create Task For first project'),
+                  ),
+                  TextButton(
+                    onPressed: setAllTaskCompleate, 
+                    child: Text('set all tasks compleate'),
+                  ),
                 ],
               ),),),
-              SliverList(delegate: SliverChildBuilderDelegate((context, i) => Text(state.users[i].toString()), childCount: state.users.length) ),
-              SliverList(delegate: SliverChildBuilderDelegate((context, i) => Text(state.projects[i].toString()), childCount: state.projects.length) ),
-              SliverList(delegate: SliverChildBuilderDelegate((context, i) => Text(state.tasks[i].toString()), childCount: state.tasks.length) ),
+              SliverList(delegate: SliverChildBuilderDelegate(
+                (context, i) => Text(state.users[i].toString()),
+                childCount: state.users.length,
+              ),),
             ],
           );
         }
@@ -69,17 +79,28 @@ class _ShowDataState extends State<ShowData> {
     return ScreenState(users: users, projects: projects, tasks: tasks);
   }
 
-  Future<void> createUser() => database.userDao.putUser();
+  Future<void> createUser() async => await database.userDao.putUser();
 
-  Future<void> createProject() => database.projectsDao.putProject();
+  Future<void> createProject() async => await database.projectsDao.putProject();
 
-  Future<void> createTaskForFirstProject() =>  database.taskDao.putTask();
+  Future<void> createTaskForFirstProject() async => 
+    await database.taskDao.putTask();
 
-  Future<void> setAllTaskCompleate() => database.transaction(() async {
-    await (database.update(database.taskTable)..where((task) => task.isCompleate.equals(false))).write(TaskTableCompanion(isCompleate: drift.Value(true)));
-  });
+  Future<void> setAllTaskCompleate() async => 
+    await database.transaction(() async {
+      await (database.update(database.taskTable)
+        ..where((task) => task.isCompleate.equals(false)))
+        .write(const TaskTableCompanion(isCompleate: drift.Value(true)));
+    });
+}
 
-  
+class UserCard extends StatelessWidget {
+  const UserCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Placeholder();
+  }
 }
 
 class ScreenState{
@@ -87,5 +108,8 @@ class ScreenState{
   final List<ProjectsTableData> projects;
   final List<TaskTableData> tasks;
 
-  const ScreenState({required this.users, required this.projects, required this.tasks});
+  const ScreenState({
+    required this.users, 
+    required this.projects, 
+    required this.tasks});
 }

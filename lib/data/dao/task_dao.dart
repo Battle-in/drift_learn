@@ -7,8 +7,10 @@ class TaskDao extends DatabaseAccessor<ProjectDatabase> with _$TaskDaoMixin{
   Future<void> putTask() async {
     final now = DateTime.now();
 
-    into(taskTable).insert(TaskTableCompanion.insert(description: 'this simple task ${now.millisecond}', projectId: 1));
+    await into(taskTable).
+      insert(TaskTableCompanion.insert(description: 
+        'this simple task ${now.millisecond}', projectId: 1));
   }
 
-  Future<List<TaskTableData>> getAll() => select(taskTable).get();
+  Future<List<TaskTableData>> getAll() async => await select(taskTable).get();
 }
