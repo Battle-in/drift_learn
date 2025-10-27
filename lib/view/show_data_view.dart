@@ -22,23 +22,13 @@ class _ShowDataState extends State<ShowData> {
     userService = UserService(database: database);
 
     return Scaffold(
-      appBar: AppBar(title: Text('title'),),
-      body: FutureBuilder(future: getAllData(), builder: (context, data){
-        if (data.data == null){
-          return Center(child: CircularProgressIndicator(),);
-        } else if (data.error != null){
-          return Center(child: Text(data.error.toString()),);
-        } else {
-          if (data.data is! ScreenState || data.data == null){
-            throw Exception('Неверное состояние');
-          }
-
-          final ScreenState state = data.data ?? ScreenState(
-            users: [], projects: [], tasks: []);
-
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(child: SizedBox(height: 300, child: Column(
+      appBar: AppBar(title: Text('title')),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 300,
+              child: Column(
                 children: [
                   TextButton(onPressed: createUser, child: Text('create User')),
                   TextButton(
@@ -58,20 +48,12 @@ class _ShowDataState extends State<ShowData> {
                     child: Text('Show User Cards'),
                   ),
                 ],
-              ),),),
-            ],
-          );
-        }
-      }),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-  }
-
-  Future<ScreenState> getAllData() async{
-    final users = await database.userDao.getAll();
-    final projects = await database.projectsDao.getAll();
-    final tasks = await database.taskDao.getAll();
-
-    return ScreenState(users: users, projects: projects, tasks: tasks);
   }
 
   Future<void> createUser() async => await database.userDao.putUser();
