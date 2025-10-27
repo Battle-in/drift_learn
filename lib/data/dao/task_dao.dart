@@ -13,4 +13,6 @@ class TaskDao extends DatabaseAccessor<ProjectDatabase> with _$TaskDaoMixin{
   }
 
   Future<List<TaskTableData>> getAll() async => await select(taskTable).get();
+
+  Stream<List<TaskTableData>> watchAll() => select(taskTable).watch();
 }

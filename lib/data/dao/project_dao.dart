@@ -9,4 +9,6 @@ class ProjectsDao extends DatabaseAccessor<ProjectDatabase> with _$ProjectsDaoMi
     .insert(name: 'value',  userId: 1));
 
   Future<List<ProjectsTableData>> getAll() => select(projectsTable).get();
+
+  Stream<List<ProjectsTableData>> watchAll() => select(projectsTable).watch();
 }

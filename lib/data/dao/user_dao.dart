@@ -6,6 +6,8 @@ class UserDao extends DatabaseAccessor<ProjectDatabase> with _$UserDaoMixin{
 
   Future<List<UserTableData>> getAll() async => await select(userTable).get();
 
+  Stream<List<UserTableData>> watchAll() => select(userTable).watch();
+
   Future<List<Map<String, dynamic>>> getUserWithProjectsAndTasksJson() async {
     final results = await customSelect('''
       SELECT DISTINCT

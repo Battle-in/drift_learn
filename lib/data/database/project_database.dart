@@ -22,12 +22,21 @@ part 'project_database.g.dart';
   daos: [UserDao, TaskDao, ProjectsDao],
 )
 class ProjectDatabase extends _$ProjectDatabase {
-  ProjectDatabase([QueryExecutor? executor])
-      : super(executor ?? LazyDatabase(() async {
+  // singleton чтобы не тянуть DI в учебный проект
+  static ProjectDatabase? _instance;
+
+  ProjectDatabase._internal(QueryExecutor executor) : super(executor);
+
+  factory ProjectDatabase([QueryExecutor? executor]) {
+    _instance ??= ProjectDatabase._internal(
+        executor ?? LazyDatabase(() async {
           final dbFolder = await getApplicationDocumentsDirectory();
           final file = File('${dbFolder.path}/db.sqlite');
           return NativeDatabase(file);
-        }));
+        }),
+      );
+    return _instance!;
+  }
 
   @override
   int get schemaVersion => 3;

@@ -2,156 +2,305 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 
 import 'package:drift_clear_learn/data/database/project_database.dart';
-import 'package:drift_clear_learn/domain/user_service.dart'; 
+import 'package:drift_clear_learn/domain/service/database_stream_service.dart';
 
-class ShowData extends StatefulWidget {
+class ShowData extends StatelessWidget {
   const ShowData({super.key});
 
   @override
-  State<ShowData> createState() => _ShowDataState();
-}
-
-class _ShowDataState extends State<ShowData> {
-
-  late ProjectDatabase database;
-  late UserService userService;
-
-   @override
   Widget build(BuildContext context) {
-    database = ProjectDatabase();
-    userService = UserService(database: database);
+    final database = ProjectDatabase();
+    final streamService = DatabaseStreamService(database);
 
     return Scaffold(
-      appBar: AppBar(title: Text('title')),
+      appBar: AppBar(title: const Text('Drift Database')),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 300,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(onPressed: createUser, child: Text('create User')),
-                  TextButton(
-                    onPressed: createProject, 
-                    child: Text('create project for first user'),
-                  ),
-                  TextButton(
-                    onPressed: createTaskForFirstProject, 
-                    child: Text('create Task For first project'),
-                  ),
-                  TextButton(
-                    onPressed: setAllTaskCompleate, 
-                    child: Text('set all tasks compleate'),
-                  ),
-                  TextButton(
-                    onPressed: showUserCards, 
-                    child: Text('Show User Cards'),
-                  ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _createUser(context),
+                          child: const Text('➕ User'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _createProject(context),
+                          child: const Text('➕ Project'),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _createTask(context),
+                          child: const Text('➕ Task'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _setAllTasksCompleate(context),
+                          child: const Text('✅ Done'),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(8.0),
+            sliver: _buildUserCards(streamService),
           ),
         ],
       ),
     );
   }
 
-  Future<void> createUser() async => await database.userDao.putUser();
+  Widget _buildUserCards(DatabaseStreamService streamService) {
+    return StreamBuilder<List<UserTableData>>(
+      stream: streamService.watchUsers(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SliverToBoxAdapter(
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-  Future<void> createProject() async => await database.projectsDao.putProject();
+        if (snapshot.hasError) {
+          return SliverToBoxAdapter(
+            child: Center(child: Text('Ошибка: ${snapshot.error}')),
+          );
+        }
 
-  Future<void> createTaskForFirstProject() async => 
-    await database.taskDao.putTask();
+        final users = snapshot.data ?? [];
 
-  Future<void> setAllTaskCompleate() async => 
-    await database.transaction(() async {
-      await (database.update(database.taskTable)
-        ..where((task) => task.isCompleate.equals(false)))
-        .write(const TaskTableCompanion(isCompleate: drift.Value(true)));
-    });
+        if (users.isEmpty) {
+          return const SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text('Нет пользователей. Нажмите "➕ User" для создания.'),
+              ),
+            ),
+          );
+        }
 
-  Future<void> showUserCards() async {
-    try {
-      // Получаем карточки пользователей
-      final userCards = await userService.getUserCards();
-      
-      // Показываем диалог с информацией
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('User Cards (${userCards.length})'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: ListView.builder(
-              itemCount: userCards.length,
-              itemBuilder: (context, index) {
-                final card = userCards[index];
-                final completedTasks = card.tasks.where((t) => t.isComplete).length;
-                final totalTasks = card.tasks.length;
-                final progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0.0;
-                
-                return Card(
-                  margin: EdgeInsets.all(8),
-                  child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => _buildUserCard(streamService, users[index]),
+            childCount: users.length,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserCard(DatabaseStreamService streamService, UserTableData user) {
+    return StreamBuilder<List<ProjectsTableData>>(
+      stream: streamService.watchProjectsByUserId(user.id),
+      builder: (context, projectsSnapshot) {
+        final projects = projectsSnapshot.data ?? [];
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          child: ExpansionTile(
+            leading: CircleAvatar(
+              child: Text(user.name[0].toUpperCase()),
+            ),
+            title: Text(
+              user.name,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              user.description,
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Проекты (${projects.length}):',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (projects.isEmpty)
+                      const Text(
+                        'Нет проектов',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      )
+                    else
+                      ...projects.map(
+                        (project) => _buildProjectCard(streamService, project),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProjectCard(
+    DatabaseStreamService streamService,
+    ProjectsTableData project,
+  ) {
+    return StreamBuilder<List<TaskTableData>>(
+      stream: streamService.watchTasksByProjectId(project.id),
+      builder: (context, tasksSnapshot) {
+        final tasks = tasksSnapshot.data ?? [];
+        final completedTasks = tasks.where((t) => t.isCompleate).length;
+        final progress =
+            tasks.isNotEmpty ? (completedTasks / tasks.length) * 100 : 0.0;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          color: Colors.grey[100],
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.folder, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        project.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.task, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Задач: ${tasks.length}',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: tasks.isNotEmpty && completedTasks == tasks.length
+                          ? Colors.green
+                          : Colors.grey[400],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$completedTasks/${tasks.length}',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: progress / 100,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progress == 100 ? Colors.green : Colors.blue,
+                  ),
+                ),
+                if (tasks.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ...tasks.map((task) => Padding(
+                    padding: const EdgeInsets.only(left: 20, top: 4),
+                    child: Row(
                       children: [
-                        Text(
-                          'User: ${card.user.name}',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        Icon(
+                          task.isCompleate
+                              ? Icons.check_box
+                              : Icons.check_box_outline_blank,
+                          size: 16,
+                          color: task.isCompleate ? Colors.green : Colors.grey,
                         ),
-                        SizedBox(height: 4),
-                        Text('Description: ${card.user.description}'),
-                        SizedBox(height: 8),
-                        Text(
-                          'Статистика:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            task.description,
+                            style: TextStyle(
+                              decoration: task.isCompleate
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              color: task.isCompleate
+                                  ? Colors.grey
+                                  : Colors.black87,
+                            ),
+                          ),
                         ),
-                        Text('Всего задач: $totalTasks'),
-                        Text('Завершено: $completedTasks'),
-                        Text('Прогресс: ${progress.toStringAsFixed(1)}%'),
-                        SizedBox(height: 8),
-                        Text(
-                          'Проекты (${card.projects.length}):',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        ...card.projects.map((project) => Padding(
-                          padding: EdgeInsets.only(left: 16, top: 4),
-                          child: Text('🔹 ${project.name}'),
-                        )),
                       ],
                     ),
-                  ),
-                );
-              },
+                  )),
+                ],
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Закрыть'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
+        );
+      },
+    );
+  }
+
+  void _createUser(BuildContext context) async {
+    final database = ProjectDatabase();
+    await database.userDao.putUser();
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
+        const SnackBar(content: Text('Пользователь создан')),
       );
     }
   }
-}
 
+  void _createProject(BuildContext context) async {
+    final database = ProjectDatabase();
+    await database.projectsDao.putProject();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Проект создан')),
+      );
+    }
+  }
 
-class ScreenState{
-  final List<UserTableData> users;
-  final List<ProjectsTableData> projects;
-  final List<TaskTableData> tasks;
+  void _createTask(BuildContext context) async {
+    final database = ProjectDatabase();
+    await database.taskDao.putTask();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Задача создана')),
+      );
+    }
+  }
 
-  const ScreenState({
-    required this.users, 
-    required this.projects, 
-    required this.tasks});
+  void _setAllTasksCompleate(BuildContext context) async {
+    final database = ProjectDatabase();
+    await database.transaction(() async {
+      await (database.update(database.taskTable)
+            ..where((task) => task.isCompleate.equals(false)))
+          .write(const TaskTableCompanion(isCompleate: drift.Value(true)));
+    });
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Все задачи выполнены')),
+      );
+    }
+  }
 }
