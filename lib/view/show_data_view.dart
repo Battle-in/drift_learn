@@ -9,7 +9,7 @@ class ShowData extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final database = ProjectDatabase();
+    final database = ProjectDatabase.lazy();
     final streamService = DatabaseStreamService(database);
 
     return Scaffold(
@@ -26,11 +26,11 @@ class ShowData extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         ElevatedButton(
-                          onPressed: () => _createUser(context),
+                          onPressed: () => _createUser(context, database),
                           child: const Text('➕ User'),
                         ),
                         ElevatedButton(
-                          onPressed: () => _createProject(context),
+                          onPressed: () => _createProject(context, database),
                           child: const Text('➕ Project'),
                         ),
                       ],
@@ -39,11 +39,11 @@ class ShowData extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         ElevatedButton(
-                          onPressed: () => _createTask(context),
+                          onPressed: () => _createTask(context, database),
                           child: const Text('➕ Task'),
                         ),
                         ElevatedButton(
-                          onPressed: () => _setAllTasksCompleate(context),
+                          onPressed: () => _setAllTasksCompleate(context, database),
                           child: const Text('✅ Done'),
                         ),
                       ],
@@ -260,8 +260,7 @@ class ShowData extends StatelessWidget {
     );
   }
 
-  void _createUser(BuildContext context) async {
-    final database = ProjectDatabase();
+  void _createUser(BuildContext context, ProjectDatabase database) async {
     await database.userDao.putUser();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -270,8 +269,7 @@ class ShowData extends StatelessWidget {
     }
   }
 
-  void _createProject(BuildContext context) async {
-    final database = ProjectDatabase();
+  void _createProject(BuildContext context, ProjectDatabase database) async {
     await database.projectsDao.putProject();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -280,8 +278,7 @@ class ShowData extends StatelessWidget {
     }
   }
 
-  void _createTask(BuildContext context) async {
-    final database = ProjectDatabase();
+  void _createTask(BuildContext context, ProjectDatabase database) async {
     await database.taskDao.putTask();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -290,8 +287,7 @@ class ShowData extends StatelessWidget {
     }
   }
 
-  void _setAllTasksCompleate(BuildContext context) async {
-    final database = ProjectDatabase();
+  void _setAllTasksCompleate(BuildContext context, ProjectDatabase database) async {
     await database.transaction(() async {
       await (database.update(database.taskTable)
             ..where((task) => task.isCompleate.equals(false)))

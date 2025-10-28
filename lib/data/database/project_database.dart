@@ -22,24 +22,21 @@ part 'project_database.g.dart';
   daos: [UserDao, TaskDao, ProjectsDao],
 )
 class ProjectDatabase extends _$ProjectDatabase {
-  // singleton чтобы не тянуть DI в учебный проект
-  static ProjectDatabase? _instance;
+  ProjectDatabase(QueryExecutor executor) : super(executor);
 
-  ProjectDatabase._internal(QueryExecutor executor) : super(executor);
-
-  factory ProjectDatabase([QueryExecutor? executor]) {
-    _instance ??= ProjectDatabase._internal(
-        executor ?? LazyDatabase(() async {
-          final dbFolder = await getApplicationDocumentsDirectory();
-          final file = File('${dbFolder.path}/db.sqlite');
-          return NativeDatabase(file);
-        }),
-      );
-    return _instance!;
+  factory ProjectDatabase.lazy([QueryExecutor? executor]) {
+    return ProjectDatabase(
+      executor ??
+          LazyDatabase(() async {
+            final dbFolder = await getApplicationDocumentsDirectory();
+            final file = File('${dbFolder.path}/db.sqlite');
+            return NativeDatabase(file);
+          }),
+    );
   }
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,9 +46,6 @@ class ProjectDatabase extends _$ProjectDatabase {
     onUpgrade: stepByStep(
       from1To2: (m, schema) async {
         await m.addColumn(taskTable, taskTable.isCompleate);
-      },
-      from2To3: (Migrator m, Schema3 schema) async {
-        // TODO: добавить миграцию на 3
       },
     ),
     beforeOpen: (details) async {
